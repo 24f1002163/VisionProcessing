@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Note Processor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .panel h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 1em;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .message {
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .image-container {
+            position: relative;
+            max-width: 100%;
+            margin: 20px 0;
+        }
+
+        #resultImage {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .concepts-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 10px;
+        }
+
+        .concept-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .concept-item:hover {
+            background: #f0f0f0;
+        }
+
+        .concept-item.selected {
+            background: #e8eaf6;
+        }
+
+        .concept-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .concept-description {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .concept-category {
+            font-size: 0.85em;
+            color: #999;
+            font-style: italic;
+        }
+
+        .audio-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .audio-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 8px 12px;
+            font-size: 0.9em;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        .language-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .language-selector button {
+            flex: 1;
+            min-width: 80px;
+            padding: 8px 12px;
+            font-size: 0.9em;
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .language-selector button.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .info-box {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .progress {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Interactive Note Processor</h1>
+            <p>Upload your notes, extract concepts, and generate multilingual explanations</p>
+        </div>
+
+        <div class="content">
+            <!-- Left Panel: Upload & Controls -->
+            <div class="left-section">
+                <div class="panel">
+                    <h2>Step 1: Upload Notes</h2>
+                    <div id="uploadMessage" class="message"></div>
+                    
+                    <div class="form-group">
+                        <label for="imageInput">Select Image</label>
+                        <input type="file" id="imageInput" accept="image/*" />
+                    </div>
+
+                    <button onclick="processImage()">📤 Process Image</button>
+
+                    <div id="uploadLoading" class="loading">
+                        <div class="spinner"></div>
+                        <p>Processing image...</p>
+                    </div>
+                </div>
+
+                <div class="panel" style="margin-top: 20px;">
+                    <h2>Step 2: Speech Generation</h2>
+                    <div id="speechMessage" class="message"></div>
+
+                    <div class="info-box">
+                        <strong>Instructions:</strong> Select a concept from the list on the right, choose a language, and generate audio explanation.
+                    </div>
+
+                    <div class="form-group">
+                        <label>Select Language</label>
+                        <div class="language-selector" id="languageSelector">
+                            <button class="lang-btn active" data-lang="en-US">🇺🇸 English</button>
+                            <button class="lang-btn" data-lang="en-IN">🇮🇳 English (India)</button>
+                            <button class="lang-btn" data-lang="hi-IN">🇮🇳 हिंदी</button>
+                            <button class="lang-btn" data-lang="ta-IN">🇮🇳 தமிழ்</button>
+                            <button class="lang-btn" data-lang="te-IN">🇮🇳 తెలుగు</button>
+                            <button class="lang-btn" data-lang="mr-IN">🇮🇳 मराठी</button>
+                        </div>
+                    </div>
+
+                    <button id="generateSpeechBtn" onclick="generateSpeech()" disabled>🎤 Generate Audio</button>
+
+                    <div id="speechLoading" class="loading">
+                        <div class="spinner"></div>
+                        <p>Generating speech...</p>
+                    </div>
+
+                    <div id="audioPlayer"></div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results -->
+            <div class="right-section">
+                <div class="panel">
+                    <h2>Processed Image & Concepts</h2>
+                    <div id="resultMessage" class="message"></div>
+
+                    <div id="imageSection" style="display: none;">
+                        <div class="image-container">
+                            <img id="resultImage" alt="Processed image with highlighted concepts" />
+                        </div>
+
+                        <h3 style="margin-top: 20px; margin-bottom: 10px; color: #667eea;">Extracted Concepts</h3>
+                        <div class="concepts-list" id="conceptsList">
+                            <p style="color: #999; text-align: center;">No concepts extracted yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';  // Flask development server
+        let selectedLanguage = 'en-US';
+        let selectedConcept = null;
+        let conceptsData = [];
+
+        // Language selector
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedLanguage = this.dataset.lang;
+            });
+        });
+
+        async function processImage() {
+            const fileInput = document.getElementById('imageInput');
+            if (!fileInput.files.length) {
+                showMessage('uploadMessage', 'Please select an image', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async (e) => {
+                try {
+                    showLoading('uploadLoading', true);
+                    hideMessage('uploadMessage');
+
+                    const imageBase64 = e.target.result.split(',')[1];
+
+                    const response = await fetch(`${API_BASE}/upload_notes`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image_base64: imageBase64 })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Display results
+                        displayResults(data);
+                        showMessage('uploadMessage', `✓ ${data.message}`, 'success');
+                    } else {
+                        showMessage('uploadMessage', `Error: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    showMessage('uploadMessage', `Error: ${error.message}`, 'error');
+                } finally {
+                    showLoading('uploadLoading', false);
+                }
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        function displayResults(data) {
+            const imageSection = document.getElementById('imageSection');
+            const resultImage = document.getElementById('resultImage');
+            const conceptsList = document.getElementById('conceptsList');
+
+            // Display image
+            resultImage.src = `data:image/png;base64,${data.highlighted_image}`;
+            imageSection.style.display = 'block';
+
+            // Display concepts
+            conceptsData = data.concepts || [];
+            if (conceptsData.length > 0) {
+                conceptsList.innerHTML = conceptsData.map((concept, idx) => `
+                    <div class="concept-item" onclick="selectConcept(${idx})" id="concept-${idx}">
+                        <div class="concept-name" style="border-left: 4px solid rgb(${concept.color.r}, ${concept.color.g}, ${concept.color.b});">
+                            ${concept.name}
+                        </div>
+                        <div class="concept-summary" style="font-size:0.95em; color:#444; margin-bottom:6px;">
+                            ${concept.summary ? concept.summary : ''}
+                        </div>
+                        <div class="concept-description">${concept.category || 'General'}</div>
+                        <small style="color: #999;">ID: ${concept.id}</small>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function selectConcept(index) {
+            // Update selection UI
+            document.querySelectorAll('.concept-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            document.getElementById(`concept-${index}`).classList.add('selected');
+
+            selectedConcept = conceptsData[index];
+            document.getElementById('generateSpeechBtn').disabled = false;
+            showMessage('speechMessage', `Selected: ${selectedConcept.name}`, 'info');
+        }
+
+        async function generateSpeech() {
+            if (!selectedConcept) {
+                showMessage('speechMessage', 'Please select a concept first', 'error');
+                return;
+            }
+
+            try {
+                showLoading('speechLoading', true);
+                hideMessage('speechMessage');
+
+                const response = await fetch(`${API_BASE}/generate_speech`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        concept_name: selectedConcept.name,
+                        concept_description: selectedConcept.category,
+                        language: selectedLanguage
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Display audio player
+                    const audioPlayer = document.getElementById('audioPlayer');
+                    audioPlayer.innerHTML = `
+                        <h3 style="margin-top: 15px; margin-bottom: 10px; color: #667eea;">Audio Explanation</h3>
+                        <audio controls style="width: 100%;">
+                            <source src="data:audio/wav;base64,${data.audio_base64}" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                        <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                            Language: ${data.language} | Voice: ${data.voice}
+                        </p>
+                    `;
+                    showMessage('speechMessage', '✓ Audio generated successfully', 'success');
+                } else {
+                    showMessage('speechMessage', `Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage('speechMessage', `Error: ${error.message}`, 'error');
+            } finally {
+                showLoading('speechLoading', false);
+            }
+        }
+
+        function showMessage(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.className = `message ${type}`;
+            el.style.display = 'block';
+        }
+
+        function hideMessage(elementId) {
+            const el = document.getElementById(elementId);
+            el.style.display = 'none';
+        }
+
+        function showLoading(elementId, show) {
+            document.getElementById(elementId).style.display = show ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>

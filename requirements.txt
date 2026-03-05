@@ -1,0 +1,22 @@
+# Uncomment to enable Azure Monitor OpenTelemetry
+# Ref: aka.ms/functions-azure-monitor-python
+# azure-monitor-opentelemetry
+
+azure-functions
+
+# Microsoft Agent Framework (pinned for stability)
+agent-framework-core==1.0.0b260107
+agent-framework-azure-ai==1.0.0b260107
+
+# Azure OpenAI for GPT-4o Vision
+azure-identity
+openai
+
+# Image processing
+Pillow
+
+# Azure Speech Services
+azure-cognitiveservices-speech
+
+# For loading env
+python-dotenv
