@@ -2,7 +2,7 @@
 Simple Flask server for testing the image processor
 Run with: python app.py
 """
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, abort
 from flask_cors import CORS
 import json
 import asyncio
@@ -25,6 +25,23 @@ CORS(app, resources={
 # Store the event loop for async operations
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
+
+
+@app.route('/', methods=['GET'])
+def index():
+    """Serve the frontend index.html"""
+    return send_from_directory('.', 'index.html')
+
+
+@app.route('/<path:path>', methods=['GET'])
+def serve_static(path):
+    """Serve other static files, but do not intercept API routes"""
+    if path.startswith('api/'):
+        abort(404)
+    try:
+        return send_from_directory('.', path)
+    except Exception:
+        abort(404)
 
 
 @app.route('/api/health', methods=['GET', 'OPTIONS'])
