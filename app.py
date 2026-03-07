@@ -82,12 +82,6 @@ def health():
 
 @app.route("/api/upload_notes", methods=["POST", "OPTIONS"])
 def upload_notes():
-    """
-    Process a student notes image.
-
-    Request body:
-        { "image_base64": "<base64 string>" }
-    """
     if request.method == "OPTIONS":
         return "", 204
     try:
@@ -136,16 +130,6 @@ def upload_notes():
 
 @app.route("/api/generate_speech", methods=["POST", "OPTIONS"])
 def generate_speech():
-    """
-    Generate a TTS audio explanation for a concept.
-
-    Request body:
-        {
-            "concept_name": "string",
-            "concept_description": "string",
-            "language": "en-US"   (optional)
-        }
-    """
     if request.method == "OPTIONS":
         return "", 204
     try:
@@ -168,7 +152,6 @@ def generate_speech():
         if not result.get("success"):
             return jsonify(result), 500
 
-        # Include the text that was synthesised so the frontend can display it
         result["explanation_text"] = concept_description
         return jsonify(result), 200
 
@@ -197,8 +180,6 @@ def get_supported_languages():
 @app.route("/api/quiz/generate_question", methods=["POST", "OPTIONS"])
 def quiz_generate_question():
     """
-    Generate a spoken quiz question for a concept AND synthesise it to audio.
-
     Request body:
         {
             "concept_name":        "string",
@@ -210,8 +191,8 @@ def quiz_generate_question():
     Response:
         {
             "success":      true,
-            "question":     "string",   // question text
-            "audio_base64": "string",   // WAV audio of the question
+            "question":     "string",
+            "audio_base64": "string",
             "language":     "string",
             "voice":        "string"
         }
@@ -220,10 +201,10 @@ def quiz_generate_question():
         return "", 204
     try:
         body = request.get_json()
-        concept_name = body.get("concept_name")
+        concept_name        = body.get("concept_name")
         concept_description = body.get("concept_description")
-        difficulty = body.get("difficulty", "medium")
-        language = body.get("language", "en-US")
+        difficulty          = body.get("difficulty", "medium")
+        language            = body.get("language", "en-US")
 
         if not concept_name or not concept_description:
             return jsonify({
@@ -231,7 +212,7 @@ def quiz_generate_question():
                 "error": "Missing concept_name or concept_description",
             }), 400
 
-        # 1 — Generate question text via LLM
+        # 1 — Generate question text via Claude
         quiz_gen = QuizGenerator()
         q_result = quiz_gen.generate_question(concept_name, concept_description, difficulty)
         if not q_result.get("success"):
@@ -250,7 +231,6 @@ def quiz_generate_question():
         )
 
         if not speech_result.get("success"):
-            # Return question text even if TTS fails
             return jsonify({
                 "success": True,
                 "question": question_text,
@@ -275,27 +255,21 @@ def quiz_generate_question():
 @app.route("/api/quiz/speech_to_text", methods=["POST", "OPTIONS"])
 def quiz_speech_to_text():
     """
-    Convert student's spoken answer (WAV audio) to text via Azure STT.
-
     Request body:
         {
-            "audio_base64": "string",   // base64-encoded WAV
-            "language":     "en-US"     (optional)
+            "audio_base64": "string",
+            "language":     "en-US"   (optional)
         }
 
     Response:
-        {
-            "success": true,
-            "text":    "string",
-            "language":"string"
-        }
+        { "success": true, "text": "string", "language": "string" }
     """
     if request.method == "OPTIONS":
         return "", 204
     try:
         body = request.get_json()
         audio_base64 = body.get("audio_base64")
-        language = body.get("language", "en-US")
+        language     = body.get("language", "en-US")
 
         if not audio_base64:
             return jsonify({"success": False, "error": "Missing audio_base64"}), 400
@@ -312,8 +286,6 @@ def quiz_speech_to_text():
 @app.route("/api/quiz/evaluate_answer", methods=["POST", "OPTIONS"])
 def quiz_evaluate_answer():
     """
-    Evaluate a student's transcribed answer AND synthesise spoken feedback.
-
     Request body:
         {
             "concept_name":        "string",
@@ -327,8 +299,8 @@ def quiz_evaluate_answer():
         {
             "success":      true,
             "rating":       "correct" | "partially_correct" | "incorrect",
-            "feedback":     "string",   // text feedback
-            "audio_base64": "string",   // WAV audio of feedback
+            "feedback":     "string",
+            "audio_base64": "string",
             "language":     "string",
             "voice":        "string"
         }
@@ -337,11 +309,11 @@ def quiz_evaluate_answer():
         return "", 204
     try:
         body = request.get_json()
-        concept_name = body.get("concept_name")
+        concept_name        = body.get("concept_name")
         concept_description = body.get("concept_description")
-        question = body.get("question")
-        student_answer = body.get("student_answer")
-        language = body.get("language", "en-US")
+        question            = body.get("question")
+        student_answer      = body.get("student_answer")
+        language            = body.get("language", "en-US")
 
         if not all([concept_name, concept_description, question, student_answer]):
             return jsonify({
@@ -349,7 +321,7 @@ def quiz_evaluate_answer():
                 "error": "Missing one or more required fields: concept_name, concept_description, question, student_answer",
             }), 400
 
-        # 1 — Evaluate via LLM
+        # 1 — Evaluate via Claude
         quiz_gen = QuizGenerator()
         eval_result = quiz_gen.evaluate_answer(
             concept_name, concept_description, question, student_answer
@@ -358,7 +330,7 @@ def quiz_evaluate_answer():
             return jsonify(eval_result), 500
 
         feedback_text = eval_result["feedback"]
-        rating = eval_result["rating"]
+        rating        = eval_result["rating"]
 
         # 2 — Synthesise feedback to speech
         speech_gen = SpeechGenerator()
@@ -371,18 +343,18 @@ def quiz_evaluate_answer():
         )
 
         response = {
-            "success": True,
-            "rating": rating,
+            "success":  True,
+            "rating":   rating,
             "feedback": feedback_text,
             "language": language,
         }
 
         if speech_result.get("success"):
             response["audio_base64"] = speech_result.get("audio_base64")
-            response["voice"] = speech_result.get("voice")
+            response["voice"]        = speech_result.get("voice")
         else:
             response["audio_base64"] = None
-            response["tts_error"] = speech_result.get("error")
+            response["tts_error"]    = speech_result.get("error")
 
         return jsonify(response), 200
 
