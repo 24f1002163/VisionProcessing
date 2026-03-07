@@ -44,6 +44,21 @@ def serve_static(path):
         abort(404)
 
 
+@app.route('/api', methods=['GET'])
+def api_root():
+    """API root to provide a simple health/info response."""
+    return jsonify({
+        "status": "healthy",
+        "service": "Interactive Note Processor",
+        "endpoints": [
+            "/api/health",
+            "/api/upload_notes",
+            "/api/generate_speech",
+            "/api/supported_languages"
+        ]
+    }), 200
+
+
 @app.route('/api/health', methods=['GET', 'OPTIONS'])
 def health():
     """Health check endpoint"""
@@ -193,7 +208,7 @@ def get_supported_languages():
 
 if __name__ == '__main__':
     print("🚀 Starting Interactive Note Processor server...")
-    print("📍 API running at: http://localhost:3000/api")
+    print("📍 API running at: http://localhost:3000")
     print("🌐 Open index.html in your browser")
     print("\n✓ Image processing: READY")
     print("⏳ Speech generation: Configure SPEECH_KEY when ready")

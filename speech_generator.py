@@ -5,6 +5,8 @@ Supports English and Indian languages (Hindi, Tamil, Telugu, Marathi)
 """
 import azure.cognitiveservices.speech as speechsdk
 from typing import Optional, Dict
+import re
+from xml.sax.saxutils import escape as xml_escape
 import os
 from dotenv import load_dotenv
 import base64
@@ -95,14 +97,15 @@ class SpeechGenerator:
         if not voice:
             voice = self.SUPPORTED_LANGUAGES[language]["default_voice"]
         
-        # Create SSML with proper language and voice
-        ssml = f"""<speak version="1.0" xml:lang="{language}">
-            <voice name="{voice}">
-                <prosody rate="1.0" pitch="1.0">
-                    {text}
-                </prosody>
-            </voice>
-        </speak>"""
+        # Create SSML with proper XML namespaces that Azure TTS expects
+        # Use explicit xmlns and mstts namespace; include xml:lang on voice
+        ssml = (
+            f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
+            f'xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="{language}">'
+            f'<voice xml:lang="{language}" name="{voice}">' 
+            f'<prosody rate="0%" pitch="0%">{text}</prosody>'
+            f'</voice></speak>'
+        )
         
         return ssml
     
@@ -143,35 +146,38 @@ class SpeechGenerator:
                 }
             
             # Prepare the text to speak
-            text_to_speak = f"{concept_name}. {concept_description}"
-            
+            raw_text = f"{concept_name}. {concept_description}"
+
+            # Remove any HTML tags that may have been included in the concept text
+            # (model outputs sometimes include <ul>, <li>, etc.). Replace with spaces.
+            plain_text = re.sub(r'<[^>]+>', ' ', raw_text)
+            # Collapse whitespace
+            plain_text = re.sub(r'\s+', ' ', plain_text).strip()
+            # Escape XML special chars for safe SSML embedding
+            text_to_speak = xml_escape(plain_text)
+
             # Create SSML
             ssml = self._create_ssml(text_to_speak, language, voice)
             
-            # Create audio config to output to default speaker
-            audio_config = speechsdk.audio.AudioOutputConfig(use_default_speaker=True)
-            
-            # Create synthesizer
-            synthesizer = speechsdk.SpeechSynthesizer(
-                speech_config=self.speech_config,
-                audio_config=audio_config
-            )
-            
+            # Create synthesizer without directing output to speaker so
+            # we can access the audio bytes from the result object.
+            synthesizer = speechsdk.SpeechSynthesizer(speech_config=self.speech_config, audio_config=None)
+
             # Synthesize speech
             result = synthesizer.speak_ssml(ssml)
-            
+
             if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
-                # Read all audio data from the stream
-                audio_data = bytes()
-                while True:
-                    chunk = audio_stream.read(4096)
-                    if not chunk:
-                        break
-                    audio_data += chunk
-                
+                # Get raw audio bytes from the synthesis result
+                audio_data = result.audio_data if hasattr(result, 'audio_data') else None
+                if not audio_data:
+                    return {
+                        "success": False,
+                        "error": "No audio data returned from speech synthesizer"
+                    }
+
                 # Encode to base64
                 audio_base64 = base64.b64encode(audio_data).decode('utf-8')
-                
+
                 return {
                     "success": True,
                     "audio_base64": audio_base64,
@@ -179,10 +185,21 @@ class SpeechGenerator:
                     "language": language,
                     "voice": voice or self.SUPPORTED_LANGUAGES[language]["default_voice"],
                     "concept": concept_name,
-                    "duration_ms": len(audio_data) // 32  # Approximate duration
+                    "duration_ms": max(0, len(audio_data) // 320)  # rough ms estimate
                 }
             else:
-                error_msg = f"Speech synthesis failed: {result.error_details}"
+                # Attempt to extract meaningful error information without
+                # assuming the presence of `error_details` attribute.
+                err = None
+                # SDK may provide cancellation details on failure
+                if hasattr(result, 'cancellation_details') and result.cancellation_details:
+                    cd = result.cancellation_details
+                    err = getattr(cd, 'error_details', None) or getattr(cd, 'reason', None)
+                # Fallback to any available attribute or str(result)
+                if not err:
+                    err = getattr(result, 'error_details', None) or str(result)
+
+                error_msg = f"Speech synthesis failed: {err}"
                 return {
                     "success": False,
                     "error": error_msg
