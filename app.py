@@ -16,13 +16,15 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 app = Flask(__name__)
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:8000", "http://localhost:3000", "https://visionprocessing-f1pz.onrender.com"],
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"],
-    }
-})
+# CORS(app, resources={
+#     r"/api/*": {
+#         "origins": ["http://localhost:8000", "http://localhost:3000", "https://visionprocessing-f1pz.onrender.com"],
+#         "methods": ["GET", "POST", "OPTIONS"],
+#         "allow_headers": ["Content-Type"],
+#     }
+# })
+
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Shared async event loop (used for SpeechGenerator which is async)
 loop = asyncio.new_event_loop()
