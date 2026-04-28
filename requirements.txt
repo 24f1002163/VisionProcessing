@@ -20,3 +20,5 @@ azure-cognitiveservices-speech
 
 # For loading env
 python-dotenv
+flask
+flask-cors
