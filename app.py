@@ -4,7 +4,7 @@ Run with: python app.py
 """
 from flask import Flask, request, jsonify, send_from_directory, abort
 from flask_cors import CORS
-import asyncio
+import asyncio, os
 
 from concept_extraction_agent import ConceptExtractor
 from image_highlighter import highlight_image_with_concepts
